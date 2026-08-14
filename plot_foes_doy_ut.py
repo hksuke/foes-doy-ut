@@ -60,13 +60,21 @@ import requests
 
 STATIONS = {
     # Western Australia -- served live by GIRO/DIDBase FastChar API
-    "LM42B": {"name": "Learmonth", "lon": 114.10, "lat": -21.8, "source": "GIRO"},
-    "PE43K": {"name": "Perth", "lon": 116.13, "lat": -32.0, "source": "GIRO"},
+    # (AWST = Australian Western Standard Time, UTC+8, no daylight saving)
+    "LM42B": {"name": "Learmonth", "lon": 114.10, "lat": -21.8, "source": "GIRO",
+              "utc_offset": 8, "tz_label": "AWST"},
+    "PE43K": {"name": "Perth", "lon": 116.13, "lat": -32.0, "source": "GIRO",
+              "utc_offset": 8, "tz_label": "AWST"},
     # Japan -- manually-scaled hourly values from NICT WDC for Ionosphere
-    "WK546": {"name": "Wakkanai/Sarobetsu", "lon": 141.75, "lat": 45.16, "source": "NICT"},
-    "TO536": {"name": "Kokubunji", "lon": 139.49, "lat": 35.71, "source": "NICT"},
-    "YG431": {"name": "Yamagawa", "lon": 130.62, "lat": 31.20, "source": "NICT"},
-    "OK426": {"name": "Okinawa/Ogimi", "lon": 128.15, "lat": 26.68, "source": "NICT"},
+    # (JST = Japan Standard Time, UTC+9, no daylight saving)
+    "WK546": {"name": "Wakkanai/Sarobetsu", "lon": 141.75, "lat": 45.16, "source": "NICT",
+              "utc_offset": 9, "tz_label": "JST"},
+    "TO536": {"name": "Kokubunji", "lon": 139.49, "lat": 35.71, "source": "NICT",
+              "utc_offset": 9, "tz_label": "JST"},
+    "YG431": {"name": "Yamagawa", "lon": 130.62, "lat": 31.20, "source": "NICT",
+              "utc_offset": 9, "tz_label": "JST"},
+    "OK426": {"name": "Okinawa/Ogimi", "lon": 128.15, "lat": 26.68, "source": "NICT",
+              "utc_offset": 9, "tz_label": "JST"},
 }
 
 FASTCHAR_URL = "https://lgdc.uml.edu/fastchar/getbest"
@@ -327,12 +335,13 @@ def bin_doy_ut(df: pd.DataFrame, char_name: str = "foEs",
 
 def plot_doy_ut(doy_edges_or_centers, ut_edges_or_centers, grid,
                  station_label: str, year_start: int, year_end: int,
-                 char_name: str = "foEs", out_png: Path | None = None):
+                 char_name: str = "foEs", out_png: Path | None = None,
+                 utc_offset: float | None = None, tz_label: str | None = None):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     mesh = ax.pcolormesh(doy_edges_or_centers, ut_edges_or_centers, grid,
                           shading="nearest", cmap="rainbow", vmin=0, vmax=10)
-    cbar = fig.colorbar(mesh, ax=ax)
+    cbar = fig.colorbar(mesh, ax=ax, pad=0.08)
     cbar.set_label(f"{char_name} (MHz)")
 
     ax.set_xlabel("Day of Year (DOY)")
@@ -342,12 +351,31 @@ def plot_doy_ut(doy_edges_or_centers, ut_edges_or_centers, grid,
     ax.set_title(f"{char_name} vs DOY / UT -- {station_label} "
                  f"({year_start}-{year_end})")
 
+    # Secondary right axis: local standard time (e.g. AWST/JST), wrapped to
+    # 0-24 h with the same 3-hour tick spacing as the UT axis. Local time is
+    # UT + utc_offset, so a given local hour sits at UT = (local - offset) mod 24.
+    if utc_offset is not None:
+        local_hours = np.arange(0, 24, 3)
+        tick_ut = np.sort((local_hours - utc_offset) % 24)
+        tick_labels = [str(int(round((u + utc_offset) % 24))) for u in tick_ut]
+        ax_right = ax.secondary_yaxis("right")
+        ax_right.set_yticks(tick_ut)
+        ax_right.set_yticklabels(tick_labels)
+        ax_right.set_ylabel(f"{tz_label} (hour)" if tz_label else "Local time (hour)")
+
     # Secondary top axis: month names as an auxiliary guide to the DOY axis
     # (non-leap-year day-of-year boundaries; close enough for a visual guide).
     month_starts = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366]
     month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     month_mids = [0.5 * (a + b) for a, b in zip(month_starts[:-1], month_starts[1:])]
+
+    # Black/white "railroad-track" dashed lines at month boundaries, so they
+    # stay visible against every color in the rainbow colormap. Skip the
+    # DOY=1 and DOY=366 edges (start of Jan / end of Dec).
+    for x in month_starts[1:-1]:
+        ax.axvline(x, color="black", linestyle=(0, (4, 4)), linewidth=1.0, zorder=5)
+        ax.axvline(x, color="white", linestyle=(4, (4, 4)), linewidth=1.0, zorder=5)
 
     ax_top = ax.secondary_xaxis("top")
     ax_top.set_xticks(month_starts)
@@ -416,7 +444,8 @@ def main():
                                             min_cs=args.min_cs)
             out_png = args.outdir / f"{args.station}_foEs_DOYvsUT_{year}.png"
             plot_doy_ut(doy_c, ut_c, grid, station_label, year, year,
-                        char_name="foEs", out_png=out_png)
+                        char_name="foEs", out_png=out_png,
+                        utc_offset=station["utc_offset"], tz_label=station["tz_label"])
     else:
         doy_c, ut_c, grid = bin_doy_ut(df, char_name="foEs",
                                         doy_bin=args.doy_bin, ut_bin=args.ut_bin,
@@ -425,7 +454,8 @@ def main():
         out_png = args.outdir / f"{args.station}_foEs_DOYvsUT_{args.year_start}-{args.year_end}.png"
         plot_doy_ut(doy_c, ut_c, grid, station_label,
                     args.year_start, args.year_end, char_name="foEs",
-                    out_png=out_png)
+                    out_png=out_png,
+                    utc_offset=station["utc_offset"], tz_label=station["tz_label"])
 
 
 if __name__ == "__main__":
