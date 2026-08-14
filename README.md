@@ -1,4 +1,4 @@
-# foEs DOY-UT Plotter
+# EsL occurrence checker
 
 Download sporadic-E critical frequency (**foEs**) records from ionosonde
 stations and plot their seasonal / diurnal climatology as a color map of
