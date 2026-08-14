@@ -1,0 +1,14 @@
+# Downloaded/cached raw ionosonde data (regenerable via plot_foes_doy_ut.py)
+*.csv
+
+# Generated plots (regenerable); curated copies live in examples/
+*.png
+!examples/*.png
+
+# OS / editor cruft
+.DS_Store
+__pycache__/
+*.pyc
+
+# Claude Code project-local metadata
+.claude/
