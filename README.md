@@ -104,15 +104,6 @@ GIRO downloads are rate-limited by the server; the script retries 429
 responses with backoff and pauses briefly between per-year requests. NICT
 downloads are static files with no such limit.
 
-## Related files
-
-- `giro_es_statistics.pro` -- an earlier IDL script covering the same GIRO
-  data source and station-code table, computing a month x local-time
-  sporadic-E *occurrence-rate* matrix rather than plotting individual foEs
-  values on a DOY x UT grid.
-- `giro.go` -- despite the extension, this is not Go code; it is a one-line
-  IDL invocation example for `giro_es_statistics.pro`.
-
 ## License
 
 Code in this repository is released under the [MIT License](LICENSE). The

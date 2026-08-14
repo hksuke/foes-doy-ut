@@ -7,11 +7,6 @@ Western Australia (GIRO/DIDBase) or Japan (NICT), and plot it as a function of
     x-axis : Day Of Year (DOY)
     y-axis : Universal Time (UT, hour)
 
-Companion to giro_es_statistics.pro (same GIRO data source/station-code
-table for the WA stations), but written in Python and plotting individual
-foEs values on a DOY x UT grid instead of a month x local-time
-occurrence-rate matrix.
-
 DATA SOURCES
 ------------
 1) Global Ionosphere Radio Observatory (GIRO), Lowell GIRO Data Center (LGDC)
